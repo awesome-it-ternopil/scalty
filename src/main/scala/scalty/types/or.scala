@@ -116,6 +116,9 @@ object OrTypeExtensions {
     def foldable: Or[List[T]] =
       Foldable[List].foldMap(values)(a => a.map(List(_)))(or.xorTFMonoid[T])
 
+    def foldableSkipLeft: Or[List[T]] =
+      Foldable[List].foldMap(values)(a => a.map(List(_)))(or.xorTFIgnoreLeftMonoid[T])
+
     def foldableMap[D](f: (T) => D): Or[List[D]] =
       Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(or.xorTFMonoid[D])
   }
@@ -178,6 +181,20 @@ object or extends OrTypeAlias {
       for {
         x <- xOr
         y <- yOr
+      } yield x ++ y
+  }
+
+  implicit def xorTFIgnoreLeftMonoid[T]: Monoid[Or[List[T]]] = new Monoid[Or[List[T]]] {
+    override def empty: Or[List[T]] = List.empty[T].toOr
+
+    override def combine(xOr: Or[List[T]], yOr: Or[List[T]]): Or[List[T]] =
+      for {
+        x <- xOr.recover {
+          case anyError => List.empty[T]
+        }
+        y <- yOr.recover {
+          case anyError => List.empty[T]
+        }
       } yield x ++ y
   }
 }
