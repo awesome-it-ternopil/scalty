@@ -2,7 +2,7 @@ package scalty.types
 
 import cats.data.OptionT
 import cats.instances.all._
-import scalty.context.Context
+import scalty.context.ScaltyExecutionContext
 import scalty.types.OptionFTypeExtensions._
 
 import scala.concurrent.Future
@@ -14,7 +14,7 @@ trait OptionFTypeAlias {
 
 }
 
-trait OptionFTypeExtensions extends Context {
+trait OptionFTypeExtensions extends ScaltyExecutionContext {
 
   implicit def toOptionF[T](value: T): OptionFExtension[T] = new OptionFExtension[T](value)
 

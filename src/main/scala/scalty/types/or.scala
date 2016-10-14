@@ -3,7 +3,7 @@ package scalty.types
 import cats.data.{OptionT, Xor, XorT}
 import cats.instances.all._
 import cats.{Foldable, Monoid}
-import scalty.context.Context
+import scalty.context.ScaltyExecutionContext
 import scalty.types.OrTypeExtensions._
 
 import scala.concurrent.Future
@@ -23,7 +23,7 @@ trait OrTypeAlias {
 /**
   * Trait contains all possible [[OrTypeAlias]]
   */
-trait OrTypeExtensions extends Context {
+trait OrTypeExtensions extends ScaltyExecutionContext {
 
   implicit def orExtensions[T](value: T): OrExtensions[T] = new OrExtensions[T](value)
 

@@ -3,14 +3,14 @@ package scalty.tests.context
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, ThreadFactory}
 
-import scalty.context.Context
+import scalty.context.ScaltyExecutionContext
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 /**
   * Created by kisilnazar on 01.10.16.
   */
-trait TestContext extends Context {
+trait TestScaltyExecutionContext extends ScaltyExecutionContext {
 
   override implicit val executionContext: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor(new ThreadFactory {
@@ -18,11 +18,11 @@ trait TestContext extends Context {
       val atomicInteger: AtomicInteger = new AtomicInteger()
 
       override def newThread(r: Runnable): Thread =
-        new Thread(r, s"${TestContext.FACTORY_NAME}-${atomicInteger.getAndIncrement()}")
+        new Thread(r, s"${TestScaltyExecutionContext.FACTORY_NAME}-${atomicInteger.getAndIncrement()}")
     }))
 
 }
 
-object TestContext {
+object TestScaltyExecutionContext {
   val FACTORY_NAME = "my-factory"
 }

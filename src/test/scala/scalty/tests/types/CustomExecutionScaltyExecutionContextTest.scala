@@ -1,12 +1,12 @@
 package scalty.tests.types
 
-import scalty.tests.context.TestContext
-import scalty.tests.suites.ScaltySuiteWithTestContext
+import scalty.tests.context.TestScaltyExecutionContext
+import scalty.tests.suites.ScaltySuiteWithTestScaltyExecutionContext
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
-class CustomExecutionContextTest extends ScaltySuiteWithTestContext {
+class CustomExecutionScaltyExecutionContextTest extends ScaltySuiteWithTestScaltyExecutionContext {
 
   test("check custom ExecutionContext") {
     val or: Or[String] = Future {
@@ -14,7 +14,7 @@ class CustomExecutionContextTest extends ScaltySuiteWithTestContext {
     }.toOr
     val result = Await.result(or.value, 1 seconds)
     assert(result.isRight)
-    assert(result.value.contains(TestContext.FACTORY_NAME))
+    assert(result.value.contains(TestScaltyExecutionContext.FACTORY_NAME))
   }
 
 }

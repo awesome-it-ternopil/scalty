@@ -2,7 +2,7 @@ package scalty.types
 
 import cats.data.{OptionT, XorT}
 import cats.instances.all._
-import scalty.context.Context
+import scalty.context.ScaltyExecutionContext
 import scalty.results.{ErrorResult, ExceptionResult}
 import scalty.types.ErrorTypeExtensions._
 
@@ -17,7 +17,7 @@ trait ErrorTypeAlias {
 
 }
 
-trait ErrorTypeExtensions extends Context {
+trait ErrorTypeExtensions extends ScaltyExecutionContext {
 
   implicit def toErrorTypeOr[T](error: AppError): ServiceErrorExtension[T] = new ServiceErrorExtension[T](error)
 
