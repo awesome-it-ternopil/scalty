@@ -2,8 +2,6 @@ package scalty.types
 
 import cats.data.Xor
 import scalty.types.XorExtensions.XorMatcherExtension
-import scalty.types.empty._
-import scalty.types.error._
 
 import scala.language.implicitConversions
 

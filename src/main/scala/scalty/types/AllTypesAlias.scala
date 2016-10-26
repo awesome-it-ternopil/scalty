@@ -1,7 +1,5 @@
 package scalty.types
 
-import scalty.context.ScaltyExecutionContext
-
 /**
   * Created by kisilnazar on 01.10.16.
   */

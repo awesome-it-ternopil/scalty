@@ -1,7 +1,6 @@
 package scalty.types
 
 import scalty.results.EmptyResult
-import scalty.types.empty._
 
 import scala.language.implicitConversions
 
