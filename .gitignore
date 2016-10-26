@@ -32,3 +32,4 @@ src/test/java/
 src/test/scala-2.11/
 
 project/project
+target
