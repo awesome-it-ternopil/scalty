@@ -1,11 +1,11 @@
 package scalty.context
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.ExecutionContext
 
 /**
   * Created by kisilnazar on 01.10.16.
   */
 trait ScaltyExecutionContext {
 
-  implicit val executionContext: ExecutionContextExecutor = scala.concurrent.ExecutionContext.Implicits.global
+  implicit val executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
 }
