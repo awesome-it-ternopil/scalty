@@ -45,6 +45,8 @@ trait OrTypeExtensions extends ScaltyExecutionContext {
   implicit def futureOptionOrExtension[T](value: Future[Option[T]]): FutureOptionOrExtension[T] =
     new FutureOptionOrExtension[T](value)
 
+  implicit def optionOrValueExtension[T](value: T): OptionOrValueExtension[T] = new OptionOrValueExtension(value)
+
 }
 
 /**
@@ -164,6 +166,10 @@ object OrTypeExtensions {
 
   final class OptionTExtension[T](val or: Or[T]) {
     def toOptionOr: OptionOr[T] = OptionT[Or, T](or.map(Option(_)))
+  }
+
+  final class OptionOrValueExtension[T](val value: T) {
+    def toOptionOr: OptionOr[T] = OptionT.fromOption[Or](Option(value))
   }
 
 }
