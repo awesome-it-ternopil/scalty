@@ -82,13 +82,13 @@ object OrTypeExtensions {
       * @param default
       * @return
       */
-    def recoverWithDefault(default: T) =
+    def recoverWithDefault(default: T): Or[T] =
       XorT(or.value.map {
         case l @ Xor.Left(_) => Xor.right(default)
         case Xor.Right(b)    => Xor.right(b)
       })
 
-    def recoverWith(f: AppError => T) =
+    def recoverWith(f: AppError => T): Or[T] =
       XorT(or.value.map {
         case Xor.Left(appError) => Xor.right(f(appError))
         case Xor.Right(b)       => Xor.right(b)
