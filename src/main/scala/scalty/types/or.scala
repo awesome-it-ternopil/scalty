@@ -33,6 +33,8 @@ trait OrTypeExtensions extends ScaltyExecutionContext {
 
   implicit def orExtension[T](value: Or[T]): OrExtension[T] = new OrExtension[T](value)
 
+  implicit def orOptionExtension[T](value: Or[Option[T]]): OrOptionExtension[T] = new OrOptionExtension[T](value)
+
   implicit def optionOrExtension[T](value: Option[T]): OptionOrExtension[T] = new OptionOrExtension(value)
 
   implicit def optionTExtension[T](value: Or[T]): OptionTExtension[T] = new OptionTExtension(value)
@@ -170,6 +172,13 @@ object OrTypeExtensions {
 
   final class OptionOrValueExtension[T](val value: T) {
     def toOptionOr: OptionOr[T] = OptionT.fromOption[Or](Option(value))
+  }
+
+  final class OrOptionExtension[T](val optionValue: Or[Option[T]]) extends AnyVal {
+    def toOrWithLeft(error: AppError): Or[T] = optionValue flatMap {
+      case Some(value) => value.toOr
+      case None        => error.toErrorOr
+    }
   }
 
 }
