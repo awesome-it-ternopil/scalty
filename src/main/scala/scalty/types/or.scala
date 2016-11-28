@@ -159,7 +159,7 @@ object OrTypeExtensions {
   }
 
   final class FutureOptionOrExtension[T](val futureOption: Future[Option[T]]) {
-    def toOrNoneToLeftError(error: AppError) =
+    def toOrWithLeft(error: AppError) =
       XorT.apply(futureOption.map {
         case Some(value) => Xor.right[AppError, T](value)
         case None        => Xor.left[AppError, T](error)
