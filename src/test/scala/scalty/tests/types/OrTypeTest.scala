@@ -2,6 +2,7 @@ package scalty.tests.types
 
 import scalty.results.{ErrorResult, ExceptionResult}
 import scalty.tests.suites.ScaltySuite
+import scalty.tests.types.TestErrors.TestErrorResult
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -49,8 +50,9 @@ class OrTypeTest extends ScaltySuite {
   }
 
   test("Future[Boolean] with true value --> EmptyOr as right") {
-    val or: EmptyOr = Future.successful(true).toOrWithLeftError(TestErrorResult("test error"))
-    val result      = Await.result(or.value, 1 seconds)
+    val or: EmptyOr =
+      Future.successful(true).toOrWithLeftError(TestErrorResult("test error"))
+    val result = Await.result(or.value, 1 seconds)
     assert(result.isRight)
   }
 
@@ -72,10 +74,11 @@ class OrTypeTest extends ScaltySuite {
   }
 
   test("list of Or-types with LeftValue to Or of list") {
-    val errorResult            = TestErrorResult("test error")
-    val list: List[Or[String]] = List("1".toOr, errorResult.toErrorOr, "2".toOr, "3".toOr)
-    val or: Or[List[String]]   = list.foldable
-    val result                 = Await.result(or.value, 1 seconds)
+    val errorResult = TestErrorResult("test error")
+    val list: List[Or[String]] =
+      List("1".toOr, errorResult.toErrorOr, "2".toOr, "3".toOr)
+    val or: Or[List[String]] = list.foldable
+    val result               = Await.result(or.value, 1 seconds)
     assert(result.isLeft)
     assert(result.leftValue == errorResult)
   }
@@ -91,15 +94,39 @@ class OrTypeTest extends ScaltySuite {
   }
 
   test("foldableSkipLeft list with all LeftValues to Or of list only with right values") {
-    val testErrorOne           = TestErrorResult("test error 1")
-    val testErrorTwo           = TestErrorResult("test error 2")
-    val list: List[Or[String]] = List(testErrorOne.toErrorOr, testErrorTwo.toErrorOr)
-    val or: Or[List[String]]   = list.foldableSkipLeft
-    val result                 = Await.result(or.value, 1 seconds)
+    val testErrorOne = TestErrorResult("test error 1")
+    val testErrorTwo = TestErrorResult("test error 2")
+    val list: List[Or[String]] =
+      List(testErrorOne.toErrorOr, testErrorTwo.toErrorOr)
+    val or: Or[List[String]] = list.foldableSkipLeft
+    val result               = Await.result(or.value, 1 seconds)
     assert(result.isRight)
     assert(result.value == List())
   }
 
+  test("Or[Option[T]] with value to Or[T] with transform None to left") {
+    val value                             = "value"
+    val orOptionValue: Or[Option[String]] = Option(value).toOr
+    val orResult: Or[String]              = orOptionValue.toOrWithLeft(TestErrors.AppError)
+    val result = Await.result(orResult.value, 1 seconds)
+    assert(result.isRight)
+    assert(result.value == value)
+  }
+
+  test("Or[Option[T]] with None to Or[T] with transform None to left") {
+    val orOptionValue: Or[Option[String]] = Option[String](null).toOr
+    val orResult: Or[String]              = orOptionValue.toOrWithLeft(TestErrors.AppError)
+    val result = Await.result(orResult.value, 1 seconds)
+    assert(result.isLeft)
+    assert(result.leftValue == TestErrors.AppError)
+  }
+
+}
+
+object TestErrors {
+
   case class TestErrorResult(description: String) extends ErrorResult
+
+  val AppError = TestErrorResult("TestAppError")
 
 }
