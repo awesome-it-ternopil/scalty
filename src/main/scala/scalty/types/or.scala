@@ -145,9 +145,16 @@ object OrTypeExtensions {
   }
 
   final class FutureOrExtension[T](val future: Future[T]) {
-    def toOrWithLeftError(error: AppError): Or[T] =
+
+    def toOrWithLeft(error: AppError): Or[T] =
       XorT.apply(future.map(Xor.right[AppError, T]).recover {
         case failure => Xor.left[AppError, T](error)
+      })
+
+    def toOrWithThrowableMap(f: PartialFunction[Throwable, AppError]): Or[T] =
+      XorT.apply(future.map(Xor.right[AppError, T]).recover {
+        case failure =>
+          if (f.isDefinedAt(failure)) Xor.left[AppError, T](f(failure)) else Xor.left[AppError, T](failure.toAppError)
       })
 
     def toEmptyOr: EmptyOr = future.map(v => empty.EMPTY_INSTANCE).toOr

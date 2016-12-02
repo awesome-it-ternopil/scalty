@@ -43,7 +43,7 @@ class OrTypeTest extends ScaltySuite {
       Thread.sleep((100 millis).toMillis)
       throw new RuntimeException()
       "hello"
-    }.toOrWithLeftError(errorResult)
+    }.toOrWithLeft(errorResult)
     val result = Await.result(orString.value, 1 seconds)
     assert(result.isLeft)
     assert(result.leftValue == errorResult)
@@ -108,7 +108,7 @@ class OrTypeTest extends ScaltySuite {
     val value                             = "value"
     val orOptionValue: Or[Option[String]] = Option(value).toOr
     val orResult: Or[String]              = orOptionValue.toOrWithLeft(TestErrors.AppError)
-    val result = Await.result(orResult.value, 1 seconds)
+    val result                            = Await.result(orResult.value, 1 seconds)
     assert(result.isRight)
     assert(result.value == value)
   }
@@ -116,12 +116,28 @@ class OrTypeTest extends ScaltySuite {
   test("Or[Option[T]] with None to Or[T] with transform None to left") {
     val orOptionValue: Or[Option[String]] = Option[String](null).toOr
     val orResult: Or[String]              = orOptionValue.toOrWithLeft(TestErrors.AppError)
-    val result = Await.result(orResult.value, 1 seconds)
+    val result                            = Await.result(orResult.value, 1 seconds)
+    assert(result.isLeft)
+    assert(result.leftValue == TestErrors.AppError)
+  }
+
+  test("failed Future[T] to Or[T] with transform Throwable to left") {
+    val errorResult = TestException()
+    val orString: Or[String] = Future {
+      Thread.sleep((100 millis).toMillis)
+      throw errorResult
+      "hello"
+    }.toOrWithThrowableMap {
+      case TestException(message) => TestErrors.AppError
+    }
+    val result = Await.result(orString.value, 1 seconds)
     assert(result.isLeft)
     assert(result.leftValue == TestErrors.AppError)
   }
 
 }
+
+case class TestException(message: String = "Test exception") extends Exception(message)
 
 object TestErrors {
 
