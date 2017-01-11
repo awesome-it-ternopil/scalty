@@ -2,7 +2,7 @@ package scalty.types
 
 import cats._
 import cats.data.Xor
-import scalty.types.XorExtensions.XorMatcherExtension
+import scalty.types.XorExtensions.{XorMatcherExtension, XorTypeFoldableExtension}
 
 import scala.language.implicitConversions
 
@@ -16,6 +16,12 @@ trait XorExtensions {
 
   implicit def xorExtension[L, R](or: Xor[L, R]): XorMatcherExtension[L, R] =
     new XorMatcherExtension(or)
+
+  implicit def xorExtension[L, R](or: Xor[L, R]): XorMatcherExtension[L, R] =
+    new XorMatcherExtension(or)
+
+  implicit def foldableExtension[T](value: List[XorType[T]]): XorTypeFoldableExtension[T] =
+    new XorTypeFoldableExtension[T](value)
 
 }
 
@@ -39,7 +45,7 @@ object XorExtensions {
 
   }
 
-  final class FoldableExtension[T](val values: List[XorType[T]]) {
+  final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) {
     def foldable: XorType[List[T]] =
       Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeMonoid[T])
 
