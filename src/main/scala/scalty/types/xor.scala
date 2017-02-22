@@ -25,7 +25,7 @@ trait XorExtensions {
 
 object XorExtensions {
 
-  final class XorMatcherExtension[L, R](val xor: Xor[L, R]) {
+  final class XorMatcherExtension[L, R](val xor: Xor[L, R]) extends AnyVal {
 
     def value: R = xor match {
       case Xor.Right(right) => right
@@ -43,7 +43,7 @@ object XorExtensions {
 
   }
 
-  final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) {
+  final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
     def foldable: XorType[List[T]] =
       Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeMonoid[T])
 
