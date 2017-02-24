@@ -132,7 +132,7 @@ object OrTypeExtensions {
 
     def toNoneOr: Or[Option[T]] = XorT.right[Future, AppError, Option[T]](Future.successful(None))
 
-    def toNoneOr[D]: Or[Option[D]] = XorT.right[Future, AppError, Option[D]](Future.successful(None))
+    def toNoneOrWith[D]: Or[Option[D]] = XorT.right[Future, AppError, Option[D]](Future.successful(None))
 
     def toOrWithLeftError(error: AppError): Or[T] = option match {
       case Some(value) => value.toOr
