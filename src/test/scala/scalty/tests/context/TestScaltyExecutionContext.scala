@@ -3,16 +3,14 @@ package scalty.tests.context
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{Executors, ThreadFactory}
 
-import scalty.context.ScaltyExecutionContext
-
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 /**
   * Created by kisilnazar on 01.10.16.
   */
-trait TestScaltyExecutionContext extends ScaltyExecutionContext {
+trait TestScaltyExecutionContext {
 
-  override implicit val executionContext: ExecutionContextExecutor =
+  implicit val executionContext: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor(new ThreadFactory {
 
       val atomicInteger: AtomicInteger = new AtomicInteger()

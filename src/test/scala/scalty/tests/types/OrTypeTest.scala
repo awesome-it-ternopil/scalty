@@ -1,14 +1,14 @@
 package scalty.tests.types
 
 import scalty.results.{ErrorResult, ExceptionResult}
-import scalty.tests.suites.ScaltySuite
+import scalty.tests.suites.ScaltySuiteWithTestScaltyExecutionContext
 import scalty.tests.types.TestErrors.TestErrorResult
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
-class OrTypeTest extends ScaltySuite {
+class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext {
 
   test("value toOr") {
     val result = Await.result("hello".toOr.value, 1 seconds)

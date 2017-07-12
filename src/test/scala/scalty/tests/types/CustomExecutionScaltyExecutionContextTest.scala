@@ -5,6 +5,7 @@ import scalty.tests.suites.ScaltySuiteWithTestScaltyExecutionContext
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class CustomExecutionScaltyExecutionContextTest extends ScaltySuiteWithTestScaltyExecutionContext {
 
