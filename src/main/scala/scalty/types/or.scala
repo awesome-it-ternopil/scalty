@@ -102,6 +102,12 @@ object OrTypeExtensions {
         case Xor.Right(successValue) =>
           Xor.right(rightMapFunction(successValue))
       })
+
+    /** Return alternative if value satisfy condition otherwise return value */
+    def alternative(p: T => Boolean)(alternative: => Or[T]): Or[T] = or.flatMap(value =>
+      if(p(value)) alternative
+      else or
+    )
   }
 
   final class OrExtensions[T](val value: T) {
