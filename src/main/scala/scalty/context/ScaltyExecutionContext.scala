@@ -1,11 +1,16 @@
 package scalty.context
-import scala.concurrent.ExecutionContext
+import java.util.concurrent.Executor
+
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 /**
   * Created by kisilnazar on 01.10.16.
   */
 object ScaltyExecutionContext {
 
-  implicit val executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+  implicit val currentThreadExecutionContext: ExecutionContextExecutor =
+    ExecutionContext.fromExecutor(new Executor {
+      def execute(runnable: Runnable) { runnable.run() }
+    })
 
 }

@@ -1,12 +1,15 @@
 package scalty.types
 
+import java.util.concurrent.Executor
+
 import cats.data.{OptionT, Xor, XorT}
 import cats.instances.all._
-import cats.{Foldable, Monoid}
+import cats.{Foldable, Functor, Monoid}
 import scalty.types.OrTypeExtensions._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.implicitConversions
+import scala.util.{Success, Try}
 
 /**
   * Describe Or type: [[Or]] and [[EmptyOr]]
@@ -205,7 +208,7 @@ object OrTypeExtensions {
 object or extends OrTypeAlias {
 
   val EMPTY_OR: EmptyOr = {
-    import scalty.context.ScaltyExecutionContext.executionContext
+    import scalty.context.ScaltyExecutionContext.currentThreadExecutionContext
 
     XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))
   }
