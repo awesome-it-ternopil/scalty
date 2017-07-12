@@ -2,10 +2,9 @@ package scalty.types
 
 import cats.data.OptionT
 import cats.instances.all._
-import scalty.context.ScaltyExecutionContext
 import scalty.types.OptionFTypeExtensions._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 
 trait OptionFTypeAlias {
@@ -14,7 +13,7 @@ trait OptionFTypeAlias {
 
 }
 
-trait OptionFTypeExtensions extends ScaltyExecutionContext {
+trait OptionFTypeExtensions {
 
   implicit def toOptionF[T](value: T): OptionFExtension[T] = new OptionFExtension[T](value)
 
@@ -24,11 +23,11 @@ trait OptionFTypeExtensions extends ScaltyExecutionContext {
 object OptionFTypeExtensions {
 
   final class OptionFExtension[T](val value: T) {
-    def toOptionF: OptionF[T] = OptionT.pure[Future, T](value)
+    def toOptionF(implicit ec: ExecutionContext): OptionF[T] = OptionT.pure[Future, T](value)
   }
 
   final class OptionTExtension[T](val value: Option[T]) {
-    def toOptionF: OptionF[T] = OptionT.fromOption[Future](value)
+    def toOptionF(implicit ec: ExecutionContext): OptionF[T] = OptionT.fromOption[Future](value)
   }
 
 }
