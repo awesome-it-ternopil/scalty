@@ -1,9 +1,10 @@
 package scalty.types
 
 import cats._
-import cats.data.Xor
+import cats.data.{Xor, XorT}
 import cats.instances.all._
-import scalty.types.XorExtensions.{XorMatcherExtension, XorTypeFoldableExtension}
+import scalty.context.ScaltyExecutionContext
+import scalty.types.XorExtensions.{XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
 
 import scala.language.implicitConversions
 
@@ -15,17 +16,20 @@ trait XorTypeAlias {
 
 trait XorExtensions {
 
-  implicit def xorExtension[L, R](or: Xor[L, R]): XorMatcherExtension[L, R] =
-    new XorMatcherExtension(or)
+  implicit def xorExtension[R](xor: XorType[R]): XorMatcherExtension[R] =
+    new XorMatcherExtension(xor)
+
+  implicit def xorTypeExtension[T](value: T): XorTypeExtension[T] =
+    new XorTypeExtension(value)
 
   implicit def foldableXorExtension[T](value: List[XorType[T]]): XorTypeFoldableExtension[T] =
     new XorTypeFoldableExtension[T](value)
 
 }
 
-object XorExtensions {
+object XorExtensions extends ScaltyExecutionContext {
 
-  final class XorMatcherExtension[L, R](val xor: Xor[L, R]) extends AnyVal {
+  final class XorMatcherExtension[R](val xor: XorType[R]) extends AnyVal {
 
     def value: R = xor match {
       case Xor.Right(right) => right
@@ -33,7 +37,9 @@ object XorExtensions {
         throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
     }
 
-    def leftValue: L = {
+    def toOr: Or[R] = XorT.fromXor(xor)
+
+    def leftValue: AppError = {
       xor match {
         case Xor.Right(right) =>
           throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
@@ -41,6 +47,10 @@ object XorExtensions {
       }
     }
 
+  }
+
+  final class XorTypeExtension[T](val value: T) extends AnyVal {
+    def toXor: XorType[T] = Xor.Right(value)
   }
 
   final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {

@@ -1,12 +1,10 @@
 package scalty.types
 
-import cats.data.{OptionT, XorT}
+import cats.data.{OptionT, Xor, XorT}
 import cats.instances.all._
 import scalty.context.ScaltyExecutionContext
 import scalty.results.{ErrorResult, ExceptionResult}
 import scalty.types.ErrorTypeExtensions._
-
-
 
 import scala.concurrent.Future
 import scala.language.implicitConversions
@@ -34,6 +32,8 @@ object ErrorTypeExtensions {
     def toErrorOrWithType[D]: Or[D] = XorT.left[Future, AppError, D](Future.successful(error))
 
     def toErrorOptionF: OptionF[T] = OptionT.none[Future, T]
+
+    def toErrorXorWithType[D]: XorType[D] = Xor.left[AppError, D](error)
 
   }
 
