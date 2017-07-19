@@ -3,9 +3,9 @@ package scalty.types
 import cats._
 import cats.data.{Xor, XorT}
 import cats.instances.all._
-import scalty.context.ScaltyExecutionContext
 import scalty.types.XorExtensions.{XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
 
+import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
 
 trait XorTypeAlias {
@@ -27,7 +27,7 @@ trait XorExtensions {
 
 }
 
-object XorExtensions extends ScaltyExecutionContext {
+object XorExtensions {
 
   final class XorMatcherExtension[R](val xor: XorType[R]) extends AnyVal {
 
@@ -37,7 +37,7 @@ object XorExtensions extends ScaltyExecutionContext {
         throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
     }
 
-    def toOr: Or[R] = XorT.fromXor(xor)
+    def toOr(implicit ec: ExecutionContext): Or[R] = XorT.fromXor(xor)
 
     def leftValue: AppError = {
       xor match {
@@ -69,7 +69,7 @@ object XorExtensions extends ScaltyExecutionContext {
 case class XorMatcherException(msg: String) extends Exception(msg)
 
 object xor extends XorTypeAlias {
-  val EMPTY_XOR = Xor.right[AppError, Empty](empty.EMPTY_INSTANCE)
+  val EMPTY_XOR: Xor[AppError, Empty] = Xor.right[AppError, Empty](empty.EMPTY_INSTANCE)
 
   implicit def xorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
     override def empty: XorType[List[T]] = Xor.right[AppError, List[T]](List.empty[T])
