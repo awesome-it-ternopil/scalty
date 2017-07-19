@@ -1,6 +1,6 @@
 package scalty.types
 
-import cats.data.{OptionT, XorT}
+import cats.data.{OptionT, Xor, XorT}
 import scalty.results.{ErrorResult, ExceptionResult}
 import scalty.types.ErrorTypeExtensions._
 
@@ -27,9 +27,12 @@ object ErrorTypeExtensions {
 
     def toErrorOr: Or[T] = XorT.left[Future, AppError, T](Future.successful(error))(or.currentThreadExecutionFutureInstances)
 
-    def toErrorOrWithType[D]: Or[D] = XorT.left[Future, AppError, D](Future.successful(error))(or.currentThreadExecutionFutureInstances)
+    def toErrorOrWithType[D]: Or[D] =
+      XorT.left[Future, AppError, D](Future.successful(error))(or.currentThreadExecutionFutureInstances)
 
     def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.currentThreadExecutionFutureInstances)
+
+    def toErrorXorWithType[D]: XorType[D] = Xor.left[AppError, D](error)
 
   }
 
