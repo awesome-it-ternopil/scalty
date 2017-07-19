@@ -1,15 +1,14 @@
 package scalty.types
 
-import java.util.concurrent.Executor
-
 import cats.data.{OptionT, Xor, XorT}
 import cats.instances.all._
-import cats.{Foldable, Functor, Monoid}
+import cats.syntax.traverse._
+import cats.{CoflatMap, Foldable, Monad, MonadError, Monoid, RecursiveTailRecM}
+import scalty.context.ScaltyExecutionContext.currentThreadExecutionContext
 import scalty.types.OrTypeExtensions._
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.util.{Success, Try}
 
 /**
   * Describe Or type: [[Or]] and [[EmptyOr]]
@@ -106,27 +105,28 @@ object OrTypeExtensions {
       })
 
     /** Return alternative if value satisfy condition otherwise return value */
-    def alternative(p: T => Boolean)(alternative: => Or[T])(implicit ec: ExecutionContext): Or[T] = or.flatMap(value =>
-      if(p(value)) alternative
-      else or
-    )
+    def alternative(p: T => Boolean)(alternative: => Or[T])(implicit ec: ExecutionContext): Or[T] =
+      or.flatMap(
+        value =>
+          if (p(value)) alternative
+          else or)
   }
 
   final class OrExtensions[T](val value: T) {
-    def toOr(implicit ec: ExecutionContext): Or[T] = XorT.right[Future, AppError, T](Future.successful(value))
+    def toOr: Or[T] = XorT.right[Future, AppError, T](Future.successful(value))(or.currentThreadExecutionFutureInstances)
 
-    def toEmptyOr(implicit ec: ExecutionContext): EmptyOr =
-      XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))
+    def toEmptyOr: EmptyOr =
+      XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))(or.currentThreadExecutionFutureInstances)
   }
 
   final class ListOrExtension[T](val value: List[T]) {
-    def toOr(implicit ec: ExecutionContext): Or[List[T]] =
-      XorT.right[Future, AppError, List[T]](Future.successful(value))
+    def toOr: Or[List[T]] =
+      XorT.right[Future, AppError, List[T]](Future.successful(value))(or.currentThreadExecutionFutureInstances)
   }
 
   final class FoldableExtension[T](val values: List[Or[T]]) {
     def foldable(implicit ec: ExecutionContext): Or[List[T]] =
-      Foldable[List].foldMap(values)(a => a.map(List(_)))(or.xorTFMonoid[T])
+      values.traverse[Or, T](or => or)
 
     def foldableSkipLeft(implicit ec: ExecutionContext): Or[List[T]] =
       Foldable[List].foldMap(values)(a => a.map(List(_)))(or.xorTFIgnoreLeftMonoid[T])
@@ -138,11 +138,13 @@ object OrTypeExtensions {
   final class OptionOrExtension[T](val option: Option[T]) {
     def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](option)
 
-    def toNoneOr(implicit ec: ExecutionContext): Or[Option[T]] = XorT.right[Future, AppError, Option[T]](Future.successful(None))
+    def toNoneOr: Or[Option[T]] =
+      XorT.right[Future, AppError, Option[T]](Future.successful(None))(or.currentThreadExecutionFutureInstances)
 
-    def toNoneOrWith[D](implicit ec: ExecutionContext): Or[Option[D]] = XorT.right[Future, AppError, Option[D]](Future.successful(None))
+    def toNoneOrWith[D]: Or[Option[D]] =
+      XorT.right[Future, AppError, Option[D]](Future.successful(None))(or.currentThreadExecutionFutureInstances)
 
-    def toOrWithLeftError(error: AppError)(implicit ec: ExecutionContext): Or[T] = option match {
+    def toOrWithLeftError(error: AppError): Or[T] = option match {
       case Some(value) => value.toOr
       case _           => error.toErrorOr
     }
@@ -207,11 +209,15 @@ object OrTypeExtensions {
   */
 object or extends OrTypeAlias {
 
-  val EMPTY_OR: EmptyOr = {
-    import scalty.context.ScaltyExecutionContext.currentThreadExecutionContext
+  val EMPTY_OR: EmptyOr =
+    XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))(currentThreadExecutionFutureInstances)
 
-    XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))
-  }
+  /**
+    * Implementation cats instances for [[scala.concurrent.Future]] with current thread execution context
+    */
+  lazy val currentThreadExecutionFutureInstances
+    : MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] with RecursiveTailRecM[Future] =
+    catsStdInstancesForFuture(currentThreadExecutionContext)
 
   implicit def xorTFMonoid[T](implicit ec: ExecutionContext): Monoid[Or[List[T]]] = new Monoid[Or[List[T]]] {
     override def empty: Or[List[T]] = List.empty[T].toOr

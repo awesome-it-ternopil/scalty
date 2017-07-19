@@ -1,11 +1,10 @@
 package scalty.types
 
 import cats.data.{OptionT, XorT}
-import cats.instances.all._
 import scalty.results.{ErrorResult, ExceptionResult}
 import scalty.types.ErrorTypeExtensions._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.language.implicitConversions
 
 trait ErrorTypeAlias {
@@ -26,11 +25,11 @@ object ErrorTypeExtensions {
 
   final class ServiceErrorExtension[T](val error: AppError) {
 
-    def toErrorOr(implicit ec: ExecutionContext): Or[T] = XorT.left[Future, AppError, T](Future.successful(error))
+    def toErrorOr: Or[T] = XorT.left[Future, AppError, T](Future.successful(error))(or.currentThreadExecutionFutureInstances)
 
-    def toErrorOrWithType[D](implicit ec: ExecutionContext): Or[D] = XorT.left[Future, AppError, D](Future.successful(error))
+    def toErrorOrWithType[D]: Or[D] = XorT.left[Future, AppError, D](Future.successful(error))(or.currentThreadExecutionFutureInstances)
 
-    def toErrorOptionF(implicit ec: ExecutionContext): OptionF[T] = OptionT.none[Future, T]
+    def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.currentThreadExecutionFutureInstances)
 
   }
 

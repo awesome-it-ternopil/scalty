@@ -23,11 +23,11 @@ trait OptionFTypeExtensions {
 object OptionFTypeExtensions {
 
   final class OptionFExtension[T](val value: T) {
-    def toOptionF(implicit ec: ExecutionContext): OptionF[T] = OptionT.pure[Future, T](value)
+    def toOptionF: OptionF[T] = OptionT.pure[Future, T](value)(or.currentThreadExecutionFutureInstances)
   }
 
   final class OptionTExtension[T](val value: Option[T]) {
-    def toOptionF(implicit ec: ExecutionContext): OptionF[T] = OptionT.fromOption[Future](value)
+    def toOptionF: OptionF[T] = OptionT.fromOption[Future](value)(or.currentThreadExecutionFutureInstances)
   }
 
 }

@@ -8,7 +8,7 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
   */
 object ScaltyExecutionContext {
 
-  implicit val currentThreadExecutionContext: ExecutionContextExecutor =
+  val currentThreadExecutionContext: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(new Executor {
       def execute(runnable: Runnable) { runnable.run() }
     })
