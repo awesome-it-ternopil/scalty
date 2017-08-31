@@ -11,7 +11,8 @@ import scala.util.{Failure, Success, Try}
 
 trait XorTypeAlias {
 
-  type XorType[T] = Xor[AppError, T]
+  type XorType[T]   = Xor[AppError, T]
+  type EmptyXorType = XorType[Empty]
 
 }
 
@@ -33,18 +34,20 @@ trait XorExtensions {
 
 object XorExtensions {
 
-  final class XorMatcherExtension[R](val xor: XorType[R]) extends AnyVal {
+  final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
-    def value: R = xor match {
+    def value: R = xorValue match {
       case Xor.Right(right) => right
       case Xor.Left(left) =>
         throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
     }
 
-    def toOr(implicit ec: ExecutionContext): Or[R] = XorT.fromXor(xor)
+    def toOr(implicit ec: ExecutionContext): Or[R] = XorT.fromXor(xorValue)
+
+    def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EMPTY_XOR)
 
     def leftValue: AppError = {
-      xor match {
+      xorValue match {
         case Xor.Right(right) =>
           throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
         case Xor.Left(left) => left
