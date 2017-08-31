@@ -3,10 +3,11 @@ package scalty.types
 import cats._
 import cats.data.{Xor, XorT}
 import cats.instances.all._
-import scalty.types.XorExtensions.{XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
+import scalty.types.XorExtensions.{TryXorTypeExtension, XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
+import scala.util.{Failure, Success, Try}
 
 trait XorTypeAlias {
 
@@ -24,6 +25,9 @@ trait XorExtensions {
 
   implicit def foldableXorExtension[T](value: List[XorType[T]]): XorTypeFoldableExtension[T] =
     new XorTypeFoldableExtension[T](value)
+
+  implicit def tryXorTypeExtension[T](block: Try[T]): TryXorTypeExtension[T] =
+    new TryXorTypeExtension(block)
 
 }
 
@@ -51,6 +55,13 @@ object XorExtensions {
 
   final class XorTypeExtension[T](val value: T) extends AnyVal {
     def toXor: XorType[T] = Xor.Right(value)
+  }
+
+  final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
+    def toXor(f: Throwable => AppError): XorType[T] = block match {
+      case Success(value)     => value.toXor
+      case Failure(throwable) => Xor.Left(f(throwable))
+    }
   }
 
   final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
