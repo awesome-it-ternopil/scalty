@@ -3,14 +3,16 @@ package scalty.types
 import cats._
 import cats.data.{Xor, XorT}
 import cats.instances.all._
-import scalty.types.XorExtensions.{XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
+import scalty.types.XorExtensions.{TryXorTypeExtension, XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
+import scala.util.{Failure, Success, Try}
 
 trait XorTypeAlias {
 
-  type XorType[T] = Xor[AppError, T]
+  type XorType[T]   = Xor[AppError, T]
+  type EmptyXorType = XorType[Empty]
 
 }
 
@@ -25,22 +27,27 @@ trait XorExtensions {
   implicit def foldableXorExtension[T](value: List[XorType[T]]): XorTypeFoldableExtension[T] =
     new XorTypeFoldableExtension[T](value)
 
+  implicit def tryXorTypeExtension[T](block: Try[T]): TryXorTypeExtension[T] =
+    new TryXorTypeExtension(block)
+
 }
 
 object XorExtensions {
 
-  final class XorMatcherExtension[R](val xor: XorType[R]) extends AnyVal {
+  final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
-    def value: R = xor match {
+    def value: R = xorValue match {
       case Xor.Right(right) => right
       case Xor.Left(left) =>
         throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
     }
 
-    def toOr(implicit ec: ExecutionContext): Or[R] = XorT.fromXor(xor)
+    def toOr(implicit ec: ExecutionContext): Or[R] = XorT.fromXor(xorValue)
+
+    def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EMPTY_XOR)
 
     def leftValue: AppError = {
-      xor match {
+      xorValue match {
         case Xor.Right(right) =>
           throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
         case Xor.Left(left) => left
@@ -51,6 +58,13 @@ object XorExtensions {
 
   final class XorTypeExtension[T](val value: T) extends AnyVal {
     def toXor: XorType[T] = Xor.Right(value)
+  }
+
+  final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
+    def toXor(f: Throwable => AppError): XorType[T] = block match {
+      case Success(value)     => value.toXor
+      case Failure(throwable) => Xor.Left(f(throwable))
+    }
   }
 
   final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
