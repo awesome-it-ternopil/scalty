@@ -1,9 +1,10 @@
 package scalty.types
 
-import cats.data.{OptionT, Xor, XorT}
+import cats.data.{EitherT, OptionT}
 import cats.instances.all._
 import cats.syntax.traverse._
-import cats.{CoflatMap, Foldable, Monad, MonadError, Monoid, RecursiveTailRecM}
+import cats.syntax.either._
+import cats.{CoflatMap, Foldable, Monad, MonadError, Monoid}
 import scalty.context.ScaltyExecutionContext.currentThreadExecutionContext
 import scalty.types.OrTypeExtensions._
 
@@ -15,7 +16,7 @@ import scala.language.implicitConversions
   */
 trait OrTypeAlias {
 
-  type Or[T]       = XorT[Future, AppError, T]
+  type Or[T]       = EitherT[Future, AppError, T]
   type EmptyOr     = Or[Empty]
   type OptionOr[T] = OptionT[Or, T]
 
@@ -71,12 +72,12 @@ object OrTypeExtensions {
       * @return [[scalty.types.OrTypeAlias.EmptyOr]]
       */
     def recoverToEmptyOr(implicit ec: ExecutionContext): EmptyOr =
-      XorT.apply(or.value.map(_ => xor.EMPTY_XOR))
+      or.value.map(_ => xor.EMPTY_XOR).toEmptyOr
 
     def recoverToEmptyOr(logError: AppError => Unit)(implicit ec: ExecutionContext): EmptyOr =
-      XorT(or.value.map {
-        case Xor.Left(appError) => logError(appError); xor.EMPTY_XOR
-        case _                  => xor.EMPTY_XOR
+      EitherT(or.value.map {
+        case Left(appError) => logError(appError); xor.EMPTY_XOR
+        case _              => xor.EMPTY_XOR
       })
 
     /**
@@ -86,22 +87,21 @@ object OrTypeExtensions {
       * @return
       */
     def recoverWithDefault(default: T)(implicit ec: ExecutionContext): Or[T] =
-      XorT(or.value.map {
-        case l @ Xor.Left(_) => Xor.right(default)
-        case Xor.Right(b)    => Xor.right(b)
+      EitherT(or.value.map {
+        case l @ Left(_) => Right(default)
+        case Right(b)    => Right(b)
       })
 
     def recoverWith(f: AppError => T)(implicit ec: ExecutionContext): Or[T] =
-      XorT(or.value.map {
-        case Xor.Left(appError) => Xor.right(f(appError))
-        case Xor.Right(b)       => Xor.right(b)
+      EitherT(or.value.map {
+        case Left(appError) => Right(f(appError))
+        case Right(b)       => Right(b)
       })
 
     def recoverMap[D](leftMapFunction: AppError => D, rightMapFunction: T => D)(implicit ec: ExecutionContext): Or[D] =
-      XorT(or.value.map {
-        case Xor.Left(appError) => Xor.right(leftMapFunction(appError))
-        case Xor.Right(successValue) =>
-          Xor.right(rightMapFunction(successValue))
+      EitherT(or.value.map {
+        case Left(appError)      => Right(leftMapFunction(appError))
+        case Right(successValue) => Right(rightMapFunction(successValue))
       })
 
     /** Return alternative if value satisfy condition otherwise return value */
@@ -113,15 +113,17 @@ object OrTypeExtensions {
   }
 
   final class OrExtensions[T](val value: T) {
-    def toOr: Or[T] = XorT.right[Future, AppError, T](Future.successful(value))(or.currentThreadExecutionFutureInstances)
+    def toOr: Or[T] = EitherT.fromEither[Future].apply(Right(value))(or.currentThreadExecutionFutureInstances)
 
     def toEmptyOr: EmptyOr =
-      XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))(or.currentThreadExecutionFutureInstances)
+      EitherT
+        .rightT[Future, AppError]
+        .apply[Empty](Future.successful(empty.EMPTY_INSTANCE))(or.currentThreadExecutionFutureInstances)
   }
 
   final class ListOrExtension[T](val value: List[T]) {
     def toOr: Or[List[T]] =
-      XorT.right[Future, AppError, List[T]](Future.successful(value))(or.currentThreadExecutionFutureInstances)
+      EitherT.rightT[Future, AppError].apply[List[T]](value)(or.currentThreadExecutionFutureInstances)
   }
 
   final class FoldableExtension[T](val values: List[Or[T]]) {
@@ -139,10 +141,10 @@ object OrTypeExtensions {
     def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](option)
 
     def toNoneOr: Or[Option[T]] =
-      XorT.right[Future, AppError, Option[T]](Future.successful(None))(or.currentThreadExecutionFutureInstances)
+      EitherT.rightT[Future, AppError].apply[Option[T]](None)(or.currentThreadExecutionFutureInstances)
 
     def toNoneOrWith[D]: Or[Option[D]] =
-      XorT.right[Future, AppError, Option[D]](Future.successful(None))(or.currentThreadExecutionFutureInstances)
+      EitherT.rightT[Future, AppError].apply[Option[D]](None)(or.currentThreadExecutionFutureInstances)
 
     def toOrWithLeftError(error: AppError): Or[T] = option match {
       case Some(value) => value.toOr
@@ -152,7 +154,7 @@ object OrTypeExtensions {
 
   final class FutureBooleanOrExtension(val future: Future[Boolean]) {
     def toOrWithLeftError(error: AppError)(implicit ec: ExecutionContext): EmptyOr =
-      XorT.right[Future, AppError, Boolean](future).flatMap { isSuccess =>
+      EitherT.apply[Future, AppError, Boolean](future.map(Right(_))).flatMap { isSuccess =>
         if (isSuccess) isSuccess.toEmptyOr
         else error.toErrorOr
       }
@@ -161,30 +163,26 @@ object OrTypeExtensions {
   final class FutureOrExtension[T](val future: Future[T]) {
 
     def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext): Or[T] =
-      XorT.apply(future.map(Xor.right[AppError, T]).recover {
-        case failure => Xor.left[AppError, T](error)
+      EitherT.apply(future.map(Right(_)).recover {
+        case failure => Left[AppError, T](error)
       })
 
     def toOrWithThrowableMap(f: PartialFunction[Throwable, AppError])(implicit ec: ExecutionContext): Or[T] =
-      XorT.apply(future.map(Xor.right[AppError, T]).recover {
+      EitherT.apply(future.map(Right[AppError, T]).recover {
         case failure =>
-          if (f.isDefinedAt(failure)) Xor.left[AppError, T](f(failure)) else Xor.left[AppError, T](failure.toAppError)
+          if (f.isDefinedAt(failure)) Left[AppError, T](f(failure)) else Left[AppError, T](failure.toAppError)
       })
 
     def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = future.map(v => empty.EMPTY_INSTANCE).toOr
 
     def toOr(implicit ec: ExecutionContext): Or[T] =
-      XorT.apply(future.map(Xor.right[AppError, T]).recover {
-        case failure: Throwable => Xor.left[AppError, T](failure.toAppError)
+      EitherT.apply(future.map(Right[AppError, T]).recover {
+        case failure: Throwable => Left[AppError, T](failure.toAppError)
       })
   }
 
   final class FutureOptionOrExtension[T](val futureOption: Future[Option[T]]) {
-    def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext) =
-      XorT.apply(futureOption.map {
-        case Some(value) => Xor.right[AppError, T](value)
-        case None        => Xor.left[AppError, T](error)
-      })
+    def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext) = EitherT(futureOption.map(Either.fromOption(_, error)))
   }
 
   final class OptionTExtension[T](val or: Or[T]) {
@@ -196,7 +194,7 @@ object OrTypeExtensions {
   }
 
   final class OrOptionExtension[T](val optionValue: Or[Option[T]]) extends AnyVal {
-    def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext): Or[T] = optionValue flatMap {
+    @inline def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext): Or[T] = optionValue flatMap {
       case Some(value) => value.toOr
       case None        => error.toErrorOr
     }
@@ -209,14 +207,12 @@ object OrTypeExtensions {
   */
 object or extends OrTypeAlias {
 
-  val EMPTY_OR: EmptyOr =
-    XorT.right[Future, AppError, Empty](Future.successful(empty.EMPTY_INSTANCE))(currentThreadExecutionFutureInstances)
+  val EMPTY_OR: EmptyOr = EitherT.pure[Future, AppError](empty.EMPTY_INSTANCE)(currentThreadExecutionFutureInstances)
 
   /**
     * Implementation cats instances for [[scala.concurrent.Future]] with current thread execution context
     */
-  lazy val currentThreadExecutionFutureInstances
-    : MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] with RecursiveTailRecM[Future] =
+  lazy val currentThreadExecutionFutureInstances: MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] =
     catsStdInstancesForFuture(currentThreadExecutionContext)
 
   implicit def xorTFMonoid[T](implicit ec: ExecutionContext): Monoid[Or[List[T]]] = new Monoid[Or[List[T]]] {
