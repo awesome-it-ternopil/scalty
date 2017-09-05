@@ -34,23 +34,13 @@ trait XorExtensions {
 
 final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
-  @inline final def value: R = xorValue match {
-    case Right(right) => right
-    case Left(left) =>
-      throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
-  }
+  @inline final def value: R = xorValue.right.get
 
   @inline final def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
 
   @inline final def toEmptyXor: XorType[Empty] = xorValue.right.flatMap(_ => xor.EMPTY_XOR)
 
-  @inline final def leftValue: AppError = {
-    xorValue match {
-      case Right(right) =>
-        throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
-      case Left(left) => left
-    }
-  }
+  @inline final def leftValue: AppError = xorValue.left.get
 
 }
 
@@ -75,8 +65,6 @@ final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends An
   @inline final def foldableMap[D](f: (T) => D): XorType[List[D]] =
     Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.xorTypeMonoid[D])
 }
-
-case class XorMatcherException(msg: String) extends Exception(msg)
 
 object xor extends XorTypeAlias {
   val EMPTY_XOR: Either[AppError, Empty] = Right[AppError, Empty](empty.EMPTY_INSTANCE)
