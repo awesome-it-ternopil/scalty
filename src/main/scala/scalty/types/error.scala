@@ -2,7 +2,6 @@ package scalty.types
 
 import cats.data.{EitherT, OptionT}
 import scalty.results.{ErrorResult, ExceptionResult}
-import scalty.types.ErrorTypeExtensions._
 
 import scala.concurrent.Future
 import scala.language.implicitConversions
@@ -21,24 +20,20 @@ trait ErrorTypeExtensions {
 
 }
 
-object ErrorTypeExtensions {
+final class ServiceErrorExtension[T](val error: AppError) extends AnyVal {
 
-  final class ServiceErrorExtension[T](val error: AppError) {
+  @inline final def toErrorOr: Or[T] = EitherT.leftT[Future, T].apply(error)(or.currentThreadExecutionFutureInstances)
 
-    def toErrorOr: Or[T] = EitherT.leftT[Future, T].apply(error)(or.currentThreadExecutionFutureInstances)
+  @inline final def toErrorOrWithType[D]: Or[D] = EitherT.leftT[Future, D].apply(error)(or.currentThreadExecutionFutureInstances)
 
-    def toErrorOrWithType[D]: Or[D] = EitherT.leftT[Future, D].apply(error)(or.currentThreadExecutionFutureInstances)
+  @inline final def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.currentThreadExecutionFutureInstances)
 
-    def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.currentThreadExecutionFutureInstances)
+  @inline final def toErrorXorWithType[D]: XorType[D] = Left(error)
 
-    def toErrorXorWithType[D]: XorType[D] = Left(error)
+}
 
-  }
-
-  final class ExceptionExtension(val throwable: Throwable) {
-    def toAppError: ErrorResult = ExceptionResult(throwable)
-  }
-
+final class ExceptionExtension(val throwable: Throwable) extends AnyVal {
+  @inline final def toAppError: ErrorResult = ExceptionResult(throwable)
 }
 
 object error extends ErrorTypeAlias

@@ -4,7 +4,6 @@ import cats._
 import cats.data.EitherT
 import cats.instances.all._
 import cats.syntax.either._
-import scalty.types.XorExtensions.{TryXorTypeExtension, XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
@@ -33,52 +32,48 @@ trait XorExtensions {
 
 }
 
-object XorExtensions {
+final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
-  final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
-
-    def value: R = xorValue match {
-      case Right(right) => right
-      case Left(left) =>
-        throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
-    }
-
-    def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
-
-    def toEmptyXor: XorType[Empty] = xorValue.right.flatMap(_ => xor.EMPTY_XOR)
-
-    def leftValue: AppError = {
-      xorValue match {
-        case Right(right) =>
-          throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
-        case Left(left) => left
-      }
-    }
-
+  @inline final def value: R = xorValue match {
+    case Right(right) => right
+    case Left(left) =>
+      throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
   }
 
-  final class XorTypeExtension[T](val value: T) extends AnyVal {
-    def toXor: XorType[T] = Right(value)
-  }
+  @inline final def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
 
-  final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
-    def toXor(f: Throwable => AppError): XorType[T] = block match {
-      case Success(value)     => value.toXor
-      case Failure(throwable) => Left(f(throwable))
+  @inline final def toEmptyXor: XorType[Empty] = xorValue.right.flatMap(_ => xor.EMPTY_XOR)
+
+  @inline final def leftValue: AppError = {
+    xorValue match {
+      case Right(right) =>
+        throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
+      case Left(left) => left
     }
   }
 
-  final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
-    def foldable: XorType[List[T]] =
-      Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeMonoid[T])
+}
 
-    def foldableSkipLeft: XorType[List[T]] =
-      Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeIgnoreLeftMonoid[T])
+final class XorTypeExtension[T](val value: T) extends AnyVal {
+  @inline final def toXor: XorType[T] = Right(value)
+}
 
-    def foldableMap[D](f: (T) => D): XorType[List[D]] =
-      Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.xorTypeMonoid[D])
+final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
+  @inline final def toXor(f: Throwable => AppError): XorType[T] = block match {
+    case Success(value)     => value.toXor
+    case Failure(throwable) => Left(f(throwable))
   }
+}
 
+final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
+  @inline final def foldable: XorType[List[T]] =
+    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeMonoid[T])
+
+  @inline final def foldableSkipLeft: XorType[List[T]] =
+    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeIgnoreLeftMonoid[T])
+
+  @inline final def foldableMap[D](f: (T) => D): XorType[List[D]] =
+    Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.xorTypeMonoid[D])
 }
 
 case class XorMatcherException(msg: String) extends Exception(msg)
