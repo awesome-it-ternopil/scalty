@@ -1,9 +1,9 @@
 package scalty.types
 
 import cats._
-import cats.data.{Xor, XorT}
+import cats.data.EitherT
 import cats.instances.all._
-import scalty.types.XorExtensions.{TryXorTypeExtension, XorMatcherExtension, XorTypeExtension, XorTypeFoldableExtension}
+import cats.syntax.either._
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
@@ -11,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 
 trait XorTypeAlias {
 
-  type XorType[T]   = Xor[AppError, T]
+  type XorType[T]   = Either[AppError, T]
   type EmptyXorType = XorType[Empty]
 
 }
@@ -32,61 +32,45 @@ trait XorExtensions {
 
 }
 
-object XorExtensions {
+final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
-  final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
+  @inline final def value: R = xorValue.right.get
 
-    def value: R = xorValue match {
-      case Xor.Right(right) => right
-      case Xor.Left(left) =>
-        throw XorMatcherException(s"'$left' is an Xor.Left, expected an Xor.Right.")
-    }
+  @inline final def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
 
-    def toOr(implicit ec: ExecutionContext): Or[R] = XorT.fromXor(xorValue)
+  @inline final def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EMPTY_XOR)
 
-    def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EMPTY_XOR)
-
-    def leftValue: AppError = {
-      xorValue match {
-        case Xor.Right(right) =>
-          throw XorMatcherException(s"'$right' is Valid, expected Invalid.")
-        case Xor.Left(left) => left
-      }
-    }
-
-  }
-
-  final class XorTypeExtension[T](val value: T) extends AnyVal {
-    def toXor: XorType[T] = Xor.Right(value)
-  }
-
-  final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
-    def toXor(f: Throwable => AppError): XorType[T] = block match {
-      case Success(value)     => value.toXor
-      case Failure(throwable) => Xor.Left(f(throwable))
-    }
-  }
-
-  final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
-    def foldable: XorType[List[T]] =
-      Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeMonoid[T])
-
-    def foldableSkipLeft: XorType[List[T]] =
-      Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeIgnoreLeftMonoid[T])
-
-    def foldableMap[D](f: (T) => D): XorType[List[D]] =
-      Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.xorTypeMonoid[D])
-  }
+  @inline final def leftValue: AppError = xorValue.left.get
 
 }
 
-case class XorMatcherException(msg: String) extends Exception(msg)
+final class XorTypeExtension[T](val value: T) extends AnyVal {
+  @inline final def toXor: XorType[T] = Right(value)
+}
+
+final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
+  @inline final def toXor(f: Throwable => AppError): XorType[T] = block match {
+    case Success(value)     => value.toXor
+    case Failure(throwable) => Left(f(throwable))
+  }
+}
+
+final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
+  @inline final def foldable: XorType[List[T]] =
+    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.XorTypeMonoid[T])
+
+  @inline final def foldableSkipLeft: XorType[List[T]] =
+    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.IgnoreLeftXorTypeMonoid[T])
+
+  @inline final def foldableMap[D](f: (T) => D): XorType[List[D]] =
+    Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.XorTypeMonoid[D])
+}
 
 object xor extends XorTypeAlias {
-  val EMPTY_XOR: Xor[AppError, Empty] = Xor.right[AppError, Empty](empty.EMPTY_INSTANCE)
+  val EMPTY_XOR: Either[AppError, Empty] = Right[AppError, Empty](empty.EMPTY_INSTANCE)
 
-  implicit def xorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
-    override def empty: XorType[List[T]] = Xor.right[AppError, List[T]](List.empty[T])
+  implicit def XorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
+    override def empty: XorType[List[T]] = Right[AppError, List[T]](List.empty[T])
 
     override def combine(xOr: XorType[List[T]], yOr: XorType[List[T]]): XorType[List[T]] =
       for {
@@ -95,16 +79,16 @@ object xor extends XorTypeAlias {
       } yield x ++ y
   }
 
-  implicit def xorTypeIgnoreLeftMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
-    override def empty: XorType[List[T]] = Xor.right[AppError, List[T]](List.empty[T])
+  implicit def IgnoreLeftXorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
+    override def empty: XorType[List[T]] = Right[AppError, List[T]](List.empty[T])
 
     override def combine(xOr: XorType[List[T]], yOr: XorType[List[T]]): XorType[List[T]] =
       for {
         x <- xOr.recover {
-          case anyError => List.empty[T]
+          case _ => List.empty[T]
         }
         y <- yOr.recover {
-          case anyError => List.empty[T]
+          case _ => List.empty[T]
         }
       } yield x ++ y
   }
