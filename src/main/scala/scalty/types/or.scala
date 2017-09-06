@@ -217,10 +217,10 @@ object or extends OrTypeAlias {
     override def combine(xOr: Or[List[T]], yOr: Or[List[T]]): Or[List[T]] =
       for {
         x <- xOr.recover {
-          case anyError => List.empty[T]
+          case _ => List.empty[T]
         }
         y <- yOr.recover {
-          case anyError => List.empty[T]
+          case _ => List.empty[T]
         }
       } yield x ++ y
   }

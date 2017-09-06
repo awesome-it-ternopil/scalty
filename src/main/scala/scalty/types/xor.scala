@@ -57,19 +57,19 @@ final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
 
 final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
   @inline final def foldable: XorType[List[T]] =
-    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeMonoid[T])
+    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.XorTypeMonoid[T])
 
   @inline final def foldableSkipLeft: XorType[List[T]] =
-    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.xorTypeIgnoreLeftMonoid[T])
+    Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.IgnoreLeftXorTypeMonoid[T])
 
   @inline final def foldableMap[D](f: (T) => D): XorType[List[D]] =
-    Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.xorTypeMonoid[D])
+    Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.XorTypeMonoid[D])
 }
 
 object xor extends XorTypeAlias {
   val EMPTY_XOR: Either[AppError, Empty] = Right[AppError, Empty](empty.EMPTY_INSTANCE)
 
-  implicit def xorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
+  implicit def XorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
     override def empty: XorType[List[T]] = Right[AppError, List[T]](List.empty[T])
 
     override def combine(xOr: XorType[List[T]], yOr: XorType[List[T]]): XorType[List[T]] =
@@ -79,16 +79,16 @@ object xor extends XorTypeAlias {
       } yield x ++ y
   }
 
-  implicit def xorTypeIgnoreLeftMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
+  implicit def IgnoreLeftXorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
     override def empty: XorType[List[T]] = Right[AppError, List[T]](List.empty[T])
 
     override def combine(xOr: XorType[List[T]], yOr: XorType[List[T]]): XorType[List[T]] =
       for {
         x <- xOr.recover {
-          case anyError => List.empty[T]
+          case _ => List.empty[T]
         }
         y <- yOr.recover {
-          case anyError => List.empty[T]
+          case _ => List.empty[T]
         }
       } yield x ++ y
   }
