@@ -38,7 +38,7 @@ final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
   @inline final def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
 
-  @inline final def toEmptyXor: XorType[Empty] = xorValue.right.flatMap(_ => xor.EMPTY_XOR)
+  @inline final def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EMPTY_XOR)
 
   @inline final def leftValue: AppError = xorValue.left.get
 
