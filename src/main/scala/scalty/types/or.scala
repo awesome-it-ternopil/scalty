@@ -113,14 +113,7 @@ final class ListOrExtension[T](val value: List[T]) extends AnyVal {
     EitherT.rightT[Future, AppError].apply[List[T]](value)(or.currentThreadExecutionFutureInstances)
 
   @inline final def batchTraverse[B](batchSize: Int)(f: T => Or[B])(implicit ec: ExecutionContext): Or[List[B]] =
-    value
-      .grouped(batchSize)
-      .foldLeft(List.empty[B].toOr) { (acc, chunk: List[T]) =>
-        for {
-          previous <- acc
-          result   <- chunk.traverse[Or, B](f)
-        } yield previous ++ result
-      }
+    batchTraverseChunk(batchSize)(_.traverse(f))
 
   @inline final def batchTraverseChunk[B](batchSize: Int)(f: List[T] => Or[List[B]])(implicit ec: ExecutionContext): Or[List[B]] =
     value
