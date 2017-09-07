@@ -135,6 +135,24 @@ class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext {
     assert(result.leftValue == TestErrors.AppError)
   }
 
+  test("batchTraverse") {
+    val list   = List(1, 2, 3, 4)
+    val result = Await.result(list.batchTraverse(2)(value => value.toString.toOr).value, 1 second)
+    assert(result.isRight)
+    assert(result.value == List("1", "2", "3", "4"))
+  }
+
+  test("batchTraverseChunk") {
+    val list = List(1, 2, 3, 4)
+    val batchTraverseChunkResult = list.batchTraverseChunk(2) { values =>
+      assert(values.length == 2)
+      values.map(_.toString).toOr
+    }.value
+    val result = Await.result(batchTraverseChunkResult, 1 second)
+    assert(result.isRight)
+    assert(result.value == List("1", "2", "3", "4"))
+  }
+
 }
 
 case class TestException(message: String = "Test exception") extends Exception(message)
