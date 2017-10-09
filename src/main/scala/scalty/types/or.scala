@@ -6,7 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.either._
 import cats.{CoflatMap, Foldable, Monad, MonadError, Monoid}
 
-import scalty.context.ScaltyExecutionContext.currentThreadExecutionContext
+import scalty.context.ScaltyExecutionContext.sameThreadExecutionContext
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 
@@ -101,7 +101,7 @@ final class OrExtension[T](val or: Or[T]) extends AnyVal {
 
 final class OrExtensions[T](val value: T) extends AnyVal {
 
-  @inline final def toOr: Or[T] = EitherT.rightT[Future, AppError].apply(value)(or.currentThreadExecutionFutureInstances)
+  @inline final def toOr: Or[T] = EitherT.rightT[Future, AppError].apply(value)(or.sameThreadExecutionContextFutureInstances)
 
   @inline final def toEmptyOr: EmptyOr = or.EMPTY_OR
 
@@ -110,7 +110,7 @@ final class OrExtensions[T](val value: T) extends AnyVal {
 final class ListOrExtension[T](val value: List[T]) extends AnyVal {
 
   @inline final def toOr: Or[List[T]] =
-    EitherT.rightT[Future, AppError].apply[List[T]](value)(or.currentThreadExecutionFutureInstances)
+    EitherT.rightT[Future, AppError].apply[List[T]](value)(or.sameThreadExecutionContextFutureInstances)
 
   @inline final def batchTraverse[B](batchSize: Int)(f: T => Or[B])(implicit ec: ExecutionContext): Or[List[B]] =
     batchTraverseChunk(batchSize)(_.traverse(f))
@@ -142,10 +142,10 @@ final class OptionOrExtension[T](val option: Option[T]) extends AnyVal {
   @inline final def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](option)
 
   @inline final def toNoneOr: Or[Option[T]] =
-    EitherT.rightT[Future, AppError].apply[Option[T]](None)(or.currentThreadExecutionFutureInstances)
+    EitherT.rightT[Future, AppError].apply[Option[T]](None)(or.sameThreadExecutionContextFutureInstances)
 
   @inline final def toNoneOrWith[D]: Or[Option[D]] =
-    EitherT.rightT[Future, AppError].apply[Option[D]](None)(or.currentThreadExecutionFutureInstances)
+    EitherT.rightT[Future, AppError].apply[Option[D]](None)(or.sameThreadExecutionContextFutureInstances)
 
   @inline final def toOrWithLeftError(error: AppError): Or[T] = option match {
     case Some(value) => value.toOr
@@ -207,13 +207,13 @@ final class OrOptionExtension[T](val optionValue: Or[Option[T]]) extends AnyVal 
   */
 object or extends OrTypeAlias {
 
-  val EMPTY_OR: EmptyOr = EitherT.pure[Future, AppError](empty.EMPTY_INSTANCE)(currentThreadExecutionFutureInstances)
+  val EMPTY_OR: EmptyOr = EitherT.pure[Future, AppError](empty.EMPTY_INSTANCE)(sameThreadExecutionContextFutureInstances)
 
   /**
     * Implementation cats instances for [[scala.concurrent.Future]] with current thread execution context
     */
-  lazy val currentThreadExecutionFutureInstances: MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] =
-    catsStdInstancesForFuture(currentThreadExecutionContext)
+  lazy val sameThreadExecutionContextFutureInstances: MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] =
+    catsStdInstancesForFuture(sameThreadExecutionContext)
 
   implicit def OrMonoid[T](implicit ec: ExecutionContext): Monoid[Or[List[T]]] = new Monoid[Or[List[T]]] {
     override def empty: Or[List[T]] = List.empty[T].toOr
