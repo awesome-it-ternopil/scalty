@@ -5,9 +5,6 @@ import java.util.concurrent.{Executors, ThreadFactory}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
-/**
-  * Created by kisilnazar on 01.10.16.
-  */
 trait TestScaltyExecutionContext {
 
   implicit val executionContext: ExecutionContextExecutor =

@@ -6,9 +6,6 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-/**
-  * Created by kisilnazar on 22.10.16.
-  */
 class OptionOrTest extends ScaltySuiteWithTestScaltyExecutionContext {
 
   test("value --> OptionOr") {
