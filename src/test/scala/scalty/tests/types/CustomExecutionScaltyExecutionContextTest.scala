@@ -13,9 +13,9 @@ class CustomExecutionScaltyExecutionContextTest extends ScaltySuiteWithTestScalt
     val or: Or[String] = Future {
       Thread.currentThread().getName
     }.toOr
-    val result = Await.result(or.value, 1 seconds)
-    assert(result.isRight)
-    assert(result.value.contains(TestScaltyExecutionContext.FACTORY_NAME))
+    whenReady(or) { result =>
+      assert(result.contains(TestScaltyExecutionContext.FACTORY_NAME))
+    }
   }
 
 }

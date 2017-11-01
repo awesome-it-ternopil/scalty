@@ -1,19 +1,18 @@
 package scalty.tests.types
 
+import org.scalatest.prop.GeneratorDrivenPropertyChecks
 import scalty.tests.suites.ScaltySuiteWithTestScaltyExecutionContext
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class OptionOrTest extends ScaltySuiteWithTestScaltyExecutionContext {
+class OptionOrTest extends ScaltySuiteWithTestScaltyExecutionContext with GeneratorDrivenPropertyChecks {
 
   test("value --> OptionOr") {
     val value = "Value"
     val optionOr: OptionOr[String] = value.toOptionOr
-    val or = Await.result(optionOr.value.value, 1 seconds)
-    assert(or.isRight)
-    assert(or.value.get == value)
+    whenReady(optionOr.value) { result: Option[String] =>
+      assert(result.get == value)
+    }
   }
 
 }

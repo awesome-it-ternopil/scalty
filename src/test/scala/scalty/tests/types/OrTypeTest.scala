@@ -6,7 +6,7 @@ import scalty.tests.suites.ScaltySuiteWithTestScaltyExecutionContext
 import scalty.tests.types.TestErrors.TestErrorResult
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 
 class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext with GeneratorDrivenPropertyChecks {
