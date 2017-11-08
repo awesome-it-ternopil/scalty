@@ -5,10 +5,11 @@ import cats.instances.all._
 import cats.syntax.traverse._
 import cats.syntax.either._
 import cats.{CoflatMap, Foldable, Monad, MonadError, Monoid}
-
 import scalty.context.ScaltyExecutionContext.sameThreadExecutionContext
+
+import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.implicitConversions
+import scala.language.{higherKinds, implicitConversions}
 
 /**
   * Describe Or type: [[Or]] and [[EmptyOr]]
@@ -50,13 +51,16 @@ trait OrTypeExtensions {
 
   implicit def optionOrValueExtension[T](value: T): OptionOrValueExtension[T] = new OptionOrValueExtension(value)
 
+  final implicit def traversableOnceExtension[A, M[X] <: TraversableOnce[X]](value: M[A]): TraversableOnceExtension[A, M] =
+    new TraversableOnceExtension(value)
+
 }
 
-final class OrExtension[T](val or: Or[T]) extends AnyVal {
+final class OrExtension[T](val orValue: Or[T]) extends AnyVal {
 
-  @inline final def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = or.map(v => empty.EMPTY_INSTANCE)
+  @inline final def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = orValue.map(v => empty.EMPTY_INSTANCE)
 
-  @inline final def each(f: T => Any)(implicit ec: ExecutionContext): Or[T] = or.map { or =>
+  @inline final def each(f: T => Any)(implicit ec: ExecutionContext): Or[T] = orValue.map { or =>
     f(or)
     or
   }
@@ -67,10 +71,10 @@ final class OrExtension[T](val or: Or[T]) extends AnyVal {
     * @return [[scalty.types.OrTypeAlias.EmptyOr]]
     */
   @inline final def recoverToEmptyOr(implicit ec: ExecutionContext): EmptyOr =
-    or.value.toEmptyOr
+    orValue.value.toEmptyOr
 
   @inline final def recoverToEmptyOr(logError: AppError => Unit)(implicit ec: ExecutionContext): EmptyOr =
-    EitherT(or.value.map {
+    EitherT(orValue.value.map {
       case Left(appError) => logError(appError); xor.EMPTY_XOR
       case _              => xor.EMPTY_XOR
     })
@@ -81,27 +85,36 @@ final class OrExtension[T](val or: Or[T]) extends AnyVal {
     * @param default
     * @return
     */
-  @inline final def recoverWithDefault(default: T)(implicit ec: ExecutionContext): Or[T] = recoverMap(_ => default, identity)
+  @inline final def recoverWithDefault(default: T)(implicit ec: ExecutionContext): Or[T] =
+    recoverMap(_ => default, identity)
 
   @inline final def recoverWith(f: AppError => T)(implicit ec: ExecutionContext): Or[T] = recoverMap(f, identity)
 
   @inline final def recoverMap[D](leftMapFunction: AppError => D, rightMapFunction: T => D)(
       implicit ec: ExecutionContext): Or[D] =
-    EitherT(or.value.map {
+    EitherT(orValue.value.map {
       case Left(appError)      => Right(leftMapFunction(appError))
       case Right(successValue) => Right(rightMapFunction(successValue))
     })
+
+  @inline final def zip[B](that: Or[B])(implicit executor: ExecutionContext): Or[(T, B)] =
+    orValue.flatMap(r1 => that.map(r2 => (r1, r2)))(or.sameThreadExecutionContextFutureInstances)
+
+  @inline def zipWith[U, R](that: Or[U])(f: (T, U) => R)(implicit executor: ExecutionContext): Or[R] = {
+    orValue.flatMap(r1 => that.map(r2 => f(r1, r2)))(or.sameThreadExecutionContextFutureInstances)
+  }
 
   /**
     * Return alternative if value satisfy condition otherwise return value
     * */
   @inline final def alternative(p: T => Boolean)(alternative: => Or[T])(implicit ec: ExecutionContext): Or[T] =
-    or.flatMap(value => if (p(value)) alternative else or)
+    orValue.flatMap(value => if (p(value)) alternative else orValue)
 }
 
 final class OrExtensions[T](val value: T) extends AnyVal {
 
-  @inline final def toOr: Or[T] = EitherT.rightT[Future, AppError].apply(value)(or.sameThreadExecutionContextFutureInstances)
+  @inline final def toOr: Or[T] =
+    EitherT.rightT[Future, AppError].apply(value)(or.sameThreadExecutionContextFutureInstances)
 
   @inline final def toEmptyOr: EmptyOr = or.EMPTY_OR
 
@@ -115,7 +128,8 @@ final class ListOrExtension[T](val value: List[T]) extends AnyVal {
   @inline final def batchTraverse[B](batchSize: Int)(f: T => Or[B])(implicit ec: ExecutionContext): Or[List[B]] =
     batchTraverseChunk(batchSize)(_.traverse(f))
 
-  @inline final def batchTraverseChunk[B](batchSize: Int)(f: List[T] => Or[List[B]])(implicit ec: ExecutionContext): Or[List[B]] =
+  @inline final def batchTraverseChunk[B](batchSize: Int)(f: List[T] => Or[List[B]])(
+      implicit ec: ExecutionContext): Or[List[B]] =
     value
       .grouped(batchSize)
       .foldLeft(List.empty[B].toOr) { (acc, chunk: List[T]) =>
@@ -124,18 +138,33 @@ final class ListOrExtension[T](val value: List[T]) extends AnyVal {
           result   <- f(chunk)
         } yield previous ++ result
       }
+}
+
+final class TraversableOnceExtension[A, M[X] <: TraversableOnce[X]](val traverseLike: M[A]) extends AnyVal {
+
+  @inline final def traverseC[B](fn: A => Or[B])(implicit cbf: CanBuildFrom[M[A], B, M[B]],
+                                                 executor: ExecutionContext): Or[M[B]] =
+    traverseLike
+      .foldLeft(cbf(traverseLike).toOr) { (fr, a) =>
+        fr.zipWith(fn(a))((builder, value) => builder += value)
+      }
+      .map(_.result())(or.sameThreadExecutionContextFutureInstances)
 
 }
 
+@deprecated("instead use traverse method", "version=0.4.0")
 final class FoldableExtension[T](val values: List[Or[T]]) extends AnyVal {
+
+  @deprecated("instead use traverse method", "version=0.4.0")
   @inline final def foldable(implicit ec: ExecutionContext): Or[List[T]] =
     values.traverse[Or, T](identity)
 
   @inline final def foldableSkipLeft(implicit ec: ExecutionContext): Or[List[T]] =
     Foldable[List].foldMap(values)(a => a.map(List(_)))(or.IgnoredLeftOrMonoid[T])
 
+  @deprecated("instead use traverse method", "version=0.4.0")
   @inline final def foldableMap[D](f: (T) => D)(implicit ec: ExecutionContext): Or[List[D]] =
-    Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(or.OrMonoid[D])
+    Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(or.OrMonoid)
 }
 
 final class OptionOrExtension[T](val option: Option[T]) extends AnyVal {
@@ -212,7 +241,8 @@ object or extends OrTypeAlias {
   /**
     * Implementation cats instances for [[scala.concurrent.Future]] with current thread execution context
     */
-  lazy val sameThreadExecutionContextFutureInstances: MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] =
+  lazy val sameThreadExecutionContextFutureInstances
+    : MonadError[Future, Throwable] with CoflatMap[Future] with Monad[Future] =
     catsStdInstancesForFuture(sameThreadExecutionContext)
 
   implicit def OrMonoid[T](implicit ec: ExecutionContext): Monoid[Or[List[T]]] = new Monoid[Or[List[T]]] {
