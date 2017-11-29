@@ -13,5 +13,5 @@ Scalty is currently available for Scala 2.11.8
 The Scalty dependency, by adding the following to your `build.sbt`:
 
 ```scala
-libraryDependencies += "com.github.awesome-it-ternopil" % "scalty_2.11" % "0.4.0"
+libraryDependencies += "com.github.awesome-it-ternopil" % "scalty_2.11" % "0.4.1"
 ```
