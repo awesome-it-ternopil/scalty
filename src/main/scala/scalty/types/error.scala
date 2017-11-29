@@ -22,11 +22,11 @@ trait ErrorTypeExtensions {
 
 final class ServiceErrorExtension[T](val error: AppError) extends AnyVal {
 
-  @inline final def toErrorOr: Or[T] = EitherT.leftT[Future, T].apply(error)(or.currentThreadExecutionFutureInstances)
+  @inline final def toErrorOr: Or[T] = EitherT.leftT[Future, T].apply(error)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toErrorOrWithType[D]: Or[D] = EitherT.leftT[Future, D].apply(error)(or.currentThreadExecutionFutureInstances)
+  @inline final def toErrorOrWithType[D]: Or[D] = EitherT.leftT[Future, D].apply(error)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.currentThreadExecutionFutureInstances)
+  @inline final def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.sameThreadExecutionContextFutureInstances)
 
   @inline final def toErrorXorWithType[D]: XorType[D] = Left(error)
 
