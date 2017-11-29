@@ -46,6 +46,8 @@ final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
 final class XorTypeExtension[T](val value: T) extends AnyVal {
   @inline final def toXor: XorType[T] = Right(value)
+
+  @inline final def toEmptyXor: EmptyXorType = xor.EMPTY_XOR
 }
 
 final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
