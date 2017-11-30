@@ -1,5 +1,5 @@
 ## Scalty
-![travis_ci](https://travis-ci.org/awesome-it-ternopil/scalty.svg?branch=master) ![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.awesome-it-ternopil/scalty_2.11/badge.svg)
+![travis_ci](https://travis-ci.org/awesome-it-ternopil/scalty.svg?branch=master) ![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.awesome-it-ternopil/scalty_2.11/badge.svg) [![codecov](https://codecov.io/gh/awesome-it-ternopil/scalty/branch/master/graph/badge.svg)](https://codecov.io/gh/awesome-it-ternopil/scalty)
 
 
 ### Overview
