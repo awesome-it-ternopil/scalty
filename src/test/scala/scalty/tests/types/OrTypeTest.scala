@@ -63,6 +63,29 @@ class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext with Generato
     }
   }
 
+  test("failed future toOr") {
+    forAll { (value: String) =>
+      val failedFutureOr: EmptyOr = Future.failed[Unit](TestException(value)).toOr
+      whenReady(failedFutureOr.value) { result =>
+        assert(result.isLeft)
+        assert(result.leftValue == ExceptionResult(TestException(value)))
+      }
+    }
+  }
+
+  test("failed future toOr with recover") {
+    forAll { (value: String) =>
+      import cats.instances.future._
+      val failedFutureOr: Or[String] = Future.failed[String](TestException(value)).toOr.recover {
+        case _ => value
+      }
+      whenReady(failedFutureOr.value) { result =>
+        assert(result.isRight)
+        assert(result.value == value)
+      }
+    }
+  }
+
   test("list of Or-types to Or of list") {
     forAll { (sequence: List[String]) =>
       val list: List[Or[String]] = sequence.map(_.toOr)
@@ -110,6 +133,51 @@ class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext with Generato
     }
   }
 
+  test("failed Future[Option[T]] to Or") {
+    forAll { (value: String) =>
+      val failedFutureOr: Or[String] =
+        Future.failed[Option[String]](TestException(value)).toOrWithLeft(TestErrorResult(value))
+      whenReady(failedFutureOr.value) { result =>
+        assert(result.isLeft)
+        assert(result.leftValue == TestErrorResult(value))
+      }
+    }
+  }
+
+  test("failed Future[Option[T]] to Or with recover") {
+    forAll { (value: String) =>
+      import cats.instances.future._
+      val failedFutureOr: Or[String] =
+        Future.failed[Option[String]](TestException(value)).toOrWithLeft(TestErrorResult("test recover")).recover {
+          case error =>
+            assert(error == TestErrorResult("test recover"))
+            value
+        }
+      whenReady(failedFutureOr.value) { result =>
+        assert(result.isRight)
+        assert(result.value == value)
+      }
+    }
+  }
+
+  test("Future[Boolean] if true success EmptyOr else failed with left") {
+    val failedFuture: EmptyOr = Future.failed(TestException()).toOrWithLeftError(TestErrors.AppError)
+    whenReady(failedFuture.value) { result =>
+      assert(result.isLeft)
+      assert(result.leftValue == TestErrors.AppError)
+    }
+  }
+
+  test("Future[Boolean] if true success EmptyOr else failed with left and than make recover") {
+    import cats.instances.future._
+    val failedFuture: EmptyOr = Future.failed(TestException()).toOrWithLeftError(TestErrors.AppError).recover {
+      case _ => ()
+    }
+    whenReady(failedFuture.value) { result =>
+      assert(result.isRight)
+    }
+  }
+
   test("Or[Option[T]] with None to Or[T] with transform None to left") {
     val orOptionValue: Or[Option[String]] = Option.empty[String].toOr
     val orResult: Or[String]              = orOptionValue.toOrWithLeft(TestErrors.AppError)
@@ -145,7 +213,7 @@ class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext with Generato
     forAll { (sequence: List[Int]) =>
       val batchSize = 2
       val batchTraverseChunkResult = sequence.batchTraverseChunk(batchSize) { values =>
-        assert(values.length <= batchSize)
+        assert(values.lengthCompare(batchSize) <= 0)
         values.map(identity).toOr
       }
       whenReady(batchTraverseChunkResult) { result: List[Int] =>
@@ -157,7 +225,7 @@ class OrTypeTest extends ScaltySuiteWithTestScaltyExecutionContext with Generato
   test("batchTraverseChunk for empty List") {
     val batchSize = 2
     val batchTraverseChunkResult = List.empty[Int].batchTraverseChunk(batchSize) { values =>
-      assert(values.length == batchSize)
+      assert(values.lengthCompare(batchSize) == 0)
       values.map(_.toString).toOr
     }
     whenReady(batchTraverseChunkResult) { result =>

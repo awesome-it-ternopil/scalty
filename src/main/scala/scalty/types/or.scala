@@ -58,9 +58,9 @@ trait OrTypeExtensions {
 
 final class OrExtension[T](val orValue: Or[T]) extends AnyVal {
 
-  @inline final def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = orValue.map(v => empty.EMPTY_INSTANCE)
+  @inline def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = orValue.map(_ => empty.EmptyInstance)
 
-  @inline final def each(f: T => Any)(implicit ec: ExecutionContext): Or[T] = orValue.map { or =>
+  @inline def each(f: T => Any)(implicit ec: ExecutionContext): Or[T] = orValue.map { or =>
     f(or)
     or
   }
@@ -70,34 +70,33 @@ final class OrExtension[T](val orValue: Or[T]) extends AnyVal {
     *
     * @return [[scalty.types.OrTypeAlias.EmptyOr]]
     */
-  @inline final def recoverToEmptyOr(implicit ec: ExecutionContext): EmptyOr =
+  @inline def recoverToEmptyOr(implicit ec: ExecutionContext): EmptyOr =
     orValue.value.toEmptyOr
 
-  @inline final def recoverToEmptyOr(logError: AppError => Unit)(implicit ec: ExecutionContext): EmptyOr =
+  @inline def recoverToEmptyOr(logError: AppError => Unit)(implicit ec: ExecutionContext): EmptyOr =
     EitherT(orValue.value.map {
-      case Left(appError) => logError(appError); xor.EMPTY_XOR
-      case _              => xor.EMPTY_XOR
+      case Left(appError) => logError(appError); xor.EmptyXorInstance
+      case _              => xor.EmptyXorInstance
     })
 
   /**
     * Recover left value as the right [[scalty.types.OrTypeAlias.Or]] with default value
     *
-    * @param default
+    * @param default the value which will be wrapped to Or
     * @return
     */
-  @inline final def recoverWithDefault(default: T)(implicit ec: ExecutionContext): Or[T] =
+  @inline def recoverWithDefault(default: T)(implicit ec: ExecutionContext): Or[T] =
     recoverMap(_ => default, identity)
 
-  @inline final def recoverWith(f: AppError => T)(implicit ec: ExecutionContext): Or[T] = recoverMap(f, identity)
+  @inline def recoverWith(f: AppError => T)(implicit ec: ExecutionContext): Or[T] = recoverMap(f, identity)
 
-  @inline final def recoverMap[D](leftMapFunction: AppError => D, rightMapFunction: T => D)(
-      implicit ec: ExecutionContext): Or[D] =
+  @inline def recoverMap[D](leftMapFunction: AppError => D, rightMapFunction: T => D)(implicit ec: ExecutionContext): Or[D] =
     EitherT(orValue.value.map {
       case Left(appError)      => Right(leftMapFunction(appError))
       case Right(successValue) => Right(rightMapFunction(successValue))
     })
 
-  @inline final def zip[B](that: Or[B])(implicit executor: ExecutionContext): Or[(T, B)] =
+  @inline def zip[B](that: Or[B])(implicit executor: ExecutionContext): Or[(T, B)] =
     orValue.flatMap(r1 => that.map(r2 => (r1, r2)))(or.sameThreadExecutionContextFutureInstances)
 
   @inline def zipWith[U, R](that: Or[U])(f: (T, U) => R)(implicit executor: ExecutionContext): Or[R] = {
@@ -107,29 +106,28 @@ final class OrExtension[T](val orValue: Or[T]) extends AnyVal {
   /**
     * Return alternative if value satisfy condition otherwise return value
     * */
-  @inline final def alternative(p: T => Boolean)(alternative: => Or[T])(implicit ec: ExecutionContext): Or[T] =
+  @inline def alternative(p: T => Boolean)(alternative: => Or[T])(implicit ec: ExecutionContext): Or[T] =
     orValue.flatMap(value => if (p(value)) alternative else orValue)
 }
 
 final class OrExtensions[T](val value: T) extends AnyVal {
 
-  @inline final def toOr: Or[T] =
+  @inline def toOr: Or[T] =
     EitherT.rightT[Future, AppError].apply(value)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toEmptyOr: EmptyOr = or.EMPTY_OR
+  @inline def toEmptyOr: EmptyOr = or.EMPTY_OR
 
 }
 
 final class ListOrExtension[T](val value: List[T]) extends AnyVal {
 
-  @inline final def toOr: Or[List[T]] =
+  @inline def toOr: Or[List[T]] =
     EitherT.rightT[Future, AppError].apply[List[T]](value)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def batchTraverse[B](batchSize: Int)(f: T => Or[B])(implicit ec: ExecutionContext): Or[List[B]] =
+  @inline def batchTraverse[B](batchSize: Int)(f: T => Or[B])(implicit ec: ExecutionContext): Or[List[B]] =
     batchTraverseChunk(batchSize)(_.traverse(f))
 
-  @inline final def batchTraverseChunk[B](batchSize: Int)(f: List[T] => Or[List[B]])(
-      implicit ec: ExecutionContext): Or[List[B]] =
+  @inline def batchTraverseChunk[B](batchSize: Int)(f: List[T] => Or[List[B]])(implicit ec: ExecutionContext): Or[List[B]] =
     value
       .grouped(batchSize)
       .foldLeft(List.empty[B].toOr) { (acc, chunk: List[T]) =>
@@ -142,8 +140,7 @@ final class ListOrExtension[T](val value: List[T]) extends AnyVal {
 
 final class TraversableOnceExtension[A, M[X] <: TraversableOnce[X]](val traverseLike: M[A]) extends AnyVal {
 
-  @inline final def traverseC[B](fn: A => Or[B])(implicit cbf: CanBuildFrom[M[A], B, M[B]],
-                                                 executor: ExecutionContext): Or[M[B]] =
+  @inline def traverseC[B](fn: A => Or[B])(implicit cbf: CanBuildFrom[M[A], B, M[B]], executor: ExecutionContext): Or[M[B]] =
     traverseLike
       .foldLeft(cbf(traverseLike).toOr) { (fr, a) =>
         fr.zipWith(fn(a))((builder, value) => builder += value)
@@ -156,72 +153,76 @@ final class TraversableOnceExtension[A, M[X] <: TraversableOnce[X]](val traverse
 final class FoldableExtension[T](val values: List[Or[T]]) extends AnyVal {
 
   @deprecated("instead use traverse method", "version=0.4.0")
-  @inline final def foldable(implicit ec: ExecutionContext): Or[List[T]] =
+  @inline def foldable(implicit ec: ExecutionContext): Or[List[T]] =
     values.traverse[Or, T](identity)
 
-  @inline final def foldableSkipLeft(implicit ec: ExecutionContext): Or[List[T]] =
+  @inline def foldableSkipLeft(implicit ec: ExecutionContext): Or[List[T]] =
     Foldable[List].foldMap(values)(a => a.map(List(_)))(or.IgnoredLeftOrMonoid[T])
 
   @deprecated("instead use traverse method", "version=0.4.0")
-  @inline final def foldableMap[D](f: (T) => D)(implicit ec: ExecutionContext): Or[List[D]] =
+  @inline def foldableMap[D](f: (T) => D)(implicit ec: ExecutionContext): Or[List[D]] =
     Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(or.OrMonoid)
 }
 
 final class OptionOrExtension[T](val option: Option[T]) extends AnyVal {
-  @inline final def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](option)
+  @inline def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](option)
 
-  @inline final def toNoneOr: Or[Option[T]] =
+  @inline def toNoneOr: Or[Option[T]] =
     EitherT.rightT[Future, AppError].apply[Option[T]](None)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toNoneOrWith[D]: Or[Option[D]] =
+  @inline def toNoneOrWith[D]: Or[Option[D]] =
     EitherT.rightT[Future, AppError].apply[Option[D]](None)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toOrWithLeftError(error: AppError): Or[T] = option match {
+  @inline def toOrWithLeftError(error: AppError): Or[T] = option match {
     case Some(value) => value.toOr
     case _           => error.toErrorOr
   }
 }
 
 final class FutureBooleanOrExtension(val future: Future[Boolean]) extends AnyVal {
-  @inline final def toOrWithLeftError(error: AppError)(implicit ec: ExecutionContext): EmptyOr =
-    EitherT.apply[Future, AppError, Boolean](future.map(Right(_))).flatMap { isSuccess =>
-      if (isSuccess) isSuccess.toEmptyOr
-      else error.toErrorOr
-    }
+  @inline def toOrWithLeftError(error: AppError)(implicit ec: ExecutionContext): EmptyOr =
+    future
+      .toOrWithLeft(error)
+      .flatMap { isSuccess =>
+        if (isSuccess) isSuccess.toEmptyOr
+        else error.toErrorOr
+      }
 }
 
 final class FutureOrExtension[T](val future: Future[T]) extends AnyVal {
 
-  @inline final def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext): Or[T] =
+  @inline def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext): Or[T] =
     EitherT.apply(future.map(Right(_)).recover {
-      case failure => Left[AppError, T](error)
+      case _ => Left[AppError, T](error)
     })
 
-  @inline final def toOrWithThrowableMap(f: PartialFunction[Throwable, AppError])(implicit ec: ExecutionContext): Or[T] =
+  @inline def toOrWithThrowableMap(f: PartialFunction[Throwable, AppError])(implicit ec: ExecutionContext): Or[T] =
     EitherT.apply(future.map(Right[AppError, T]).recover {
       case failure =>
         if (f.isDefinedAt(failure)) Left[AppError, T](f(failure)) else Left[AppError, T](failure.toAppError)
     })
 
-  @inline final def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = future.map(_ => empty.EMPTY_INSTANCE).toOr
+  @inline def toEmptyOr(implicit ec: ExecutionContext): EmptyOr = future.map(_ => empty.EmptyInstance).toOr
 
-  @inline final def toOr(implicit ec: ExecutionContext): Or[T] =
+  @inline def toOr(implicit ec: ExecutionContext): Or[T] =
     EitherT.apply(future.map(Right[AppError, T]).recover {
       case failure: Throwable => Left[AppError, T](failure.toAppError)
     })
 }
 
 final class FutureOptionOrExtension[T](val futureOption: Future[Option[T]]) extends AnyVal {
-  @inline final def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext) =
-    EitherT(futureOption.map(Either.fromOption(_, error)))
+  @inline def toOrWithLeft(error: AppError)(implicit ec: ExecutionContext) =
+    EitherT(futureOption.map(Either.fromOption(_, error)).recover {
+      case _ => Left(error)
+    })
 }
 
 final class OptionTOrExtension[T](val or: Or[T]) extends AnyVal {
-  @inline final def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT[Or, T](or.map(Option(_)))
+  @inline def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT[Or, T](or.map(Option(_)))
 }
 
 final class OptionOrValueExtension[T](val value: T) extends AnyVal {
-  @inline final def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](Option(value))
+  @inline def toOptionOr(implicit ec: ExecutionContext): OptionOr[T] = OptionT.fromOption[Or](Option(value))
 }
 
 final class OrOptionExtension[T](val optionValue: Or[Option[T]]) extends AnyVal {
@@ -236,7 +237,7 @@ final class OrOptionExtension[T](val optionValue: Or[Option[T]]) extends AnyVal 
   */
 object or extends OrTypeAlias {
 
-  val EMPTY_OR: EmptyOr = EitherT.pure[Future, AppError](empty.EMPTY_INSTANCE)(sameThreadExecutionContextFutureInstances)
+  val EMPTY_OR: EmptyOr = EitherT.pure[Future, AppError](empty.EmptyInstance)(sameThreadExecutionContextFutureInstances)
 
   /**
     * Implementation cats instances for [[scala.concurrent.Future]] with current thread execution context

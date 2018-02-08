@@ -19,11 +19,11 @@ trait OptionFTypeExtensions {
 }
 
 final class OptionFExtension[T](val value: T) extends AnyVal{
-  @inline final def toOptionF: OptionF[T] = OptionT.pure[Future](value)(or.sameThreadExecutionContextFutureInstances)
+  @inline def toOptionF: OptionF[T] = OptionT.pure[Future](value)(or.sameThreadExecutionContextFutureInstances)
 }
 
 final class OptionTExtension[T](val value: Option[T]) extends AnyVal {
-  @inline final def toOptionF: OptionF[T] = OptionT.fromOption[Future](value)(or.sameThreadExecutionContextFutureInstances)
+  @inline def toOptionF: OptionF[T] = OptionT.fromOption[Future](value)(or.sameThreadExecutionContextFutureInstances)
 }
 
 object optionF extends OptionFTypeAlias

@@ -14,12 +14,12 @@ trait EmptyTypeAlias {
 
 trait EmptyTypeExtensions {
 
-  implicit def toEmpty(any: Any): Empty = empty.EMPTY_INSTANCE
+  implicit def toEmpty(any: Any): Empty = empty.EmptyInstance
 
 }
 
 object empty extends EmptyTypeAlias {
 
-  val EMPTY_INSTANCE: Empty = ()
+  val EmptyInstance: Empty = ()
 
 }
