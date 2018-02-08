@@ -20,6 +20,8 @@ before_cache:
 
 script:
   - sbt ++$TRAVIS_SCALA_VERSION test
+  - sbt clean coverage test coverageReport
 
 after_success:
   - "[[ $TRAVIS_BRANCH == \"master\" ]] && { sbt +publishSigned; sbt sonatypeRelease; };"
+  - bash <(curl -s https://codecov.io/bash)
