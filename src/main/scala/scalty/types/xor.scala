@@ -34,42 +34,42 @@ trait XorExtensions {
 
 final class XorMatcherExtension[R](val xorValue: XorType[R]) extends AnyVal {
 
-  @inline final def value: R = xorValue.right.get
+  @inline def value: R = xorValue.right.get
 
-  @inline final def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
+  @inline def toOr(implicit ec: ExecutionContext): Or[R] = EitherT.fromEither(xorValue)
 
-  @inline final def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EMPTY_XOR)
+  @inline def toEmptyXor: XorType[Empty] = xorValue.flatMap(_ => xor.EmptyXorInstance)
 
-  @inline final def leftValue: AppError = xorValue.left.get
+  @inline def leftValue: AppError = xorValue.left.get
 
 }
 
 final class XorTypeExtension[T](val value: T) extends AnyVal {
-  @inline final def toXor: XorType[T] = Right(value)
+  @inline def toXor: XorType[T] = Right(value)
 
-  @inline final def toEmptyXor: EmptyXorType = xor.EMPTY_XOR
+  @inline def toEmptyXor: EmptyXorType = xor.EmptyXorInstance
 }
 
 final class TryXorTypeExtension[T](val block: Try[T]) extends AnyVal {
-  @inline final def toXor(f: Throwable => AppError): XorType[T] = block match {
+  @inline def toXor(f: Throwable => AppError): XorType[T] = block match {
     case Success(value)     => value.toXor
     case Failure(throwable) => Left(f(throwable))
   }
 }
 
 final class XorTypeFoldableExtension[T](val values: List[XorType[T]]) extends AnyVal {
-  @inline final def foldable: XorType[List[T]] =
+  @inline def foldable: XorType[List[T]] =
     Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.XorTypeMonoid[T])
 
-  @inline final def foldableSkipLeft: XorType[List[T]] =
+  @inline def foldableSkipLeft: XorType[List[T]] =
     Foldable[List].foldMap(values)(a => a.map(List(_)))(xor.IgnoreLeftXorTypeMonoid[T])
 
-  @inline final def foldableMap[D](f: (T) => D): XorType[List[D]] =
+  @inline def foldableMap[D](f: (T) => D): XorType[List[D]] =
     Foldable[List].foldMap(values)(a => a.map(value => List(f(value))))(xor.XorTypeMonoid[D])
 }
 
 object xor extends XorTypeAlias {
-  val EMPTY_XOR: Either[AppError, Empty] = Right[AppError, Empty](empty.EMPTY_INSTANCE)
+  val EmptyXorInstance: Either[AppError, Empty] = Right[AppError, Empty](empty.EmptyInstance)
 
   implicit def XorTypeMonoid[T]: Monoid[XorType[List[T]]] = new Monoid[XorType[List[T]]] {
     override def empty: XorType[List[T]] = Right[AppError, List[T]](List.empty[T])

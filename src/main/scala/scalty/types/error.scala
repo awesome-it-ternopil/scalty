@@ -22,18 +22,18 @@ trait ErrorTypeExtensions {
 
 final class ServiceErrorExtension[T](val error: AppError) extends AnyVal {
 
-  @inline final def toErrorOr: Or[T] = EitherT.leftT[Future, T].apply(error)(or.sameThreadExecutionContextFutureInstances)
+  @inline def toErrorOr: Or[T] = EitherT.leftT[Future, T].apply(error)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toErrorOrWithType[D]: Or[D] = EitherT.leftT[Future, D].apply(error)(or.sameThreadExecutionContextFutureInstances)
+  @inline def toErrorOrWithType[D]: Or[D] = EitherT.leftT[Future, D].apply(error)(or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.sameThreadExecutionContextFutureInstances)
+  @inline def toErrorOptionF: OptionF[T] = OptionT.none[Future, T](or.sameThreadExecutionContextFutureInstances)
 
-  @inline final def toErrorXorWithType[D]: XorType[D] = Left(error)
+  @inline def toErrorXorWithType[D]: XorType[D] = Left(error)
 
 }
 
 final class ExceptionExtension(val throwable: Throwable) extends AnyVal {
-  @inline final def toAppError: ErrorResult = ExceptionResult(throwable)
+  @inline def toAppError: ErrorResult = ExceptionResult(throwable)
 }
 
 object error extends ErrorTypeAlias
