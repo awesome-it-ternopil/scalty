@@ -19,9 +19,8 @@ before_cache:
   - find $HOME/.sbt -name "*.lock" -delete
 
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION test
-  - sbt clean coverage test coverageReport
+  - sbt clean coverage ++$TRAVIS_SCALA_VERSION test coverageReport
 
 after_success:
-  - "[[ $TRAVIS_BRANCH == \"master\" ]] && { sbt +publishSigned; sbt sonatypeRelease; };"
+  - "[[ $TRAVIS_BRANCH == \"master\" ]] && { sbt +publish; };"
   - bash <(curl -s https://codecov.io/bash)
